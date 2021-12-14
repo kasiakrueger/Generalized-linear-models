@@ -1,0 +1,270 @@
+---
+title: "Final project - Wine Quality"
+author: "Kasia Krueger"
+date: "11/24/2021"
+output: pdf_document
+---
+
+```{r setup, include=FALSE, warning=F}
+knitr::opts_chunk$set(echo = TRUE)
+require(stats)
+# library(ggplot2)
+library(statmod) # for qresid()
+library(MASS) # for stepwise funtion
+library(knitr)
+
+```
+
+```{r}
+
+winequality_white <- read.csv(file = "winequality-white.csv", head = TRUE, sep=",")
+winequality_white <- as.data.frame(winequality_white)
+winequality_red <- read.csv(file = "winequality-red.csv", head = TRUE, sep=",")
+winequality_red <- as.data.frame(winequality_red)
+wine <- rbind.data.frame(winequality_red,winequality_white)
+``` 
+# bind "color" to data frame
+```{r}
+n.white<- nrow(winequality_white)
+color <- as.factor(rep("white",n.white))
+winequality_white$color <- color
+n.red <- nrow(winequality_red)
+color.red <- as.factor(rep("red",n.red))
+winequality_red$color <- color.red
+wine <- rbind.data.frame(winequality_red,winequality_white)
+```
+
+# Summary stats
+```{r}
+summary(wine)
+table(wine$quality) # view quality as scores
+```
+
+# exploratory data analysis
+```{r}
+par(mfrow = c(1, 5),oma = c(1,1,0,0) + 0.1,  mar = c(3,3,1,1) + 0.1)
+boxplot(wine$chlorides )
+mtext("chlorides", cex=0.8, side=1, line=2)
+boxplot(wine$alcohol )
+mtext("alcohol", cex=0.8, side=1, line=2)
+boxplot(wine$volatile.acidity )
+mtext("volatile.acidity", cex=0.8, side=1, line=2)
+boxplot(wine$density )
+mtext("density", cex=0.8, side=1, line=2)
+boxplot(wine$fixed.acidity )
+mtext("fixed.acidity", cex=0.8, side=1, line=2)
+boxplot(wine$citric.acid )
+mtext("citric.acid", cex=0.8, side=1, line=2)
+boxplot(wine$residual.sugar )
+mtext("residual.sugar", cex=0.8, side=1, line=2)
+boxplot(wine$free.sulfur.dioxide )
+mtext("free.sulfur.dioxide", cex=0.8, side=1, line=2)
+boxplot(wine$total.sulfur.dioxide )
+mtext("total.sulfur.dioxide", cex=0.8, side=1, line=2)
+boxplot(wine$pH )
+mtext("pH", cex=0.8, side=1, line=2)
+boxplot(wine$sulphates )
+mtext("sulphates", cex=0.8, side=1, line=2)
+hist(wine$quality)
+
+par(mfrow = c(2, 3))
+plot(quality ~ color, data = wine, 
+     ylab = "Quality", xlab = "Color", 
+     main = "Quality Vs. Color",
+     cex=0.5, cex.main=0.8,cex.axis=0.5 )
+plot(quality ~ chlorides, data = wine, 
+     ylab = "Quality", xlab = "Chlorides", 
+     main = "Quality Vs. Chlorides",
+     cex=0.5, cex.main=0.8,cex.axis=0.5 )
+plot(quality ~ alcohol, data = wine, 
+     ylab = "Quality", xlab = "Alcohol %", 
+     main = "Quality Vs. Alcohol %",
+     cex=0.5, cex.main=0.8,cex.axis=0.5 )
+plot(quality ~ volatile.acidity, data = wine, 
+     ylab = "Quality", xlab = "Volatile Acidity", 
+     main = "Quality Vs. Volatile Acidity",
+     cex=0.5, cex.main=0.8,cex.axis=0.5 )
+plot(quality ~ density, data = wine, 
+     ylab = "Quality", xlab = "Density", 
+     main = "Quality Vs. Density",
+     cex=0.5, cex.main=0.8,cex.axis=0.5 )
+plot(quality ~ fixed.acidity, data = wine, 
+     ylab = "Quality", xlab = "Fixed Acidity", 
+     main = "Quality Vs. Fixed Acidity",
+     cex=0.5, cex.main=0.8,cex.axis=0.5 )
+plot(quality ~ citric.acid, data = wine, 
+     ylab = "Quality", xlab = "Citric Acid", 
+     main = "Quality Vs. Citric Acid",
+     cex=0.5, cex.main=0.8,cex.axis=0.5 )
+plot(quality ~ residual.sugar, data = wine, 
+     ylab = "Quality", xlab = "Residual Sugar", 
+     main = "Quality Vs. Residual Suagr",
+     cex=0.5, cex.main=0.8,cex.axis=0.5 )
+plot(quality ~ free.sulfur.dioxide, data = wine, 
+     ylab = "Quality", xlab = "Free Sulfur Dioxide", 
+     main = "Quality Vs. Free Sulfur Dioxide",
+     cex=0.5, cex.main=0.8,cex.axis=0.5 )
+plot(quality ~ total.sulfur.dioxide, data = wine, 
+     ylab = "Quality", xlab = "Total Sulfur Dioxide", 
+     main = "Quality Vs. Density",
+     cex=0.5, cex.main=0.8,cex.axis=0.5 )
+plot(quality ~ pH, data = wine, 
+     ylab = "Quality", xlab = "pH", 
+     main = "Quality Vs. pH",
+     cex=0.5, cex.main=0.8,cex.axis=0.5 )
+plot(quality ~ sulphates, data = wine, 
+     ylab = "Quality", xlab = "Sulphates", 
+     main = "Quality Vs. Sulphates",
+     cex=0.5, cex.main=0.8,cex.axis=0.5 )
+```
+
+# create good/bad scores
+```{r}
+wine$category[wine$quality <= 5] <- 0
+wine$category[wine$quality > 5] <- 1
+wine$category <- as.factor(wine$category)
+par(mfrow = c(2,3))
+```
+
+```{r}
+par(mfrow = c(2, 3))
+plot(category ~ . - quality, data = wine, pch = 19, las = 1)
+```
+
+# GLM
+```{r}
+wine.glm <- glm(category ~ . - quality,
+                  family=binomial(logit), data = wine)
+summary(wine.glm)
+``` 
+
+# Stepwise AIC and BICto determine best model
+```{r}
+min <- glm(category ~ 1 - quality,
+                  family=binomial(logit), data = wine)
+
+best.model.AIC <- step(min, scope = list(lower=min, upper=wine.glm), direction = "both",trace=FALSE )
+best.model.BIC  <- step(min, scope = list(lower=min, upper=wine.glm), direction = "both",trace=FALSE, k=log(nrow(wine)))
+
+best.model.AIC 
+best.model.BIC 
+AIC(best.model.AIC)
+BIC(best.model.AIC)
+
+AIC(best.model.BIC)
+BIC(best.model.BIC)
+
+summary(best.model.AIC)
+summary(best.model.BIC)
+```
+
+```{r}
+best.model <- best.model.BIC
+```
+
+# Pearson stat for goodness-of-fit 
+```{r}
+df.res <- df.residual(best.model)
+gm.pearson <- sum(resid(best.model, type = "pearson")^2) # deviance
+pearson.p <- 1 - pchisq(gm.pearson, df = df.res)
+c(df.res = df.res, pearson = gm.pearson, p = pearson.p)
+```
+
+```{r}
+summary(best.model)
+```
+
+# Diagnostic plots
+
+## plot of quantile residuals against transformed mu
+```{r warning = F}
+par(mfrow = c(2, 2))
+rQ <- qresid(best.model) # quantile residual
+fitted <- best.model$fitted.values
+fitted.ci <- asin(sqrt(fitted))
+rQ <- qresid(best.model) # quantile residual
+
+plot(rQ ~ fitted.ci, 
+     ylab="Quantile Residuals", 
+     xlab="sqrt(Category)",
+     main="A: Quantile Residuals\n vs Transformed Fitted Values",
+     cex=0.8, cex.main=0.8,cex.axis=0.8, cex.names=0.8)
+abline(h=0.0, col="red")
+
+## a plot of the working responses against the linear predictors
+
+lp <- predict(best.model, type = "link") # linear predictor
+z <- resid(best.model, type = "working") + lp # working response
+
+lp <- lp[-c(653,6080,6079)]
+z <- z[-c(653,6080,6079)]
+
+scatter.smooth(z ~ lp, las = 1, ylab = "Working Responses", 
+               xlab = "Linear Predictors", 
+               main = "B: Working Responses\n vs Linear Predictors",
+     cex=0.8, cex.main=0.8,cex.axis=0.8, cex.names=0.8)
+
+maxlp <- which.max(abs(lp))
+maxz <- which.max(abs(z))
+points( x = wine$category[maxlp], y = z[maxlp], col = 3, pch = 16) 
+points( x = wine$category[maxz], y = z[maxz], col = 4, pch = 16)
+
+
+## Q-Q plot of the quantile residuals
+
+rQ <- qresid(best.model) # quantile residual
+qqnorm(rQ, las = 1, main = "C: Q-Q plot",
+     cex=0.8, cex.main=0.8,cex.axis=0.8, cex.names=0.8)
+qqline(rQ)
+
+## scatter plot of the Cook's distance D
+
+cD <- cooks.distance(best.model)
+plot(cD ~ wine$category, las = 1, 
+     ylab = "Cook's Distance", xlab = "Category", 
+     main = "D: Cook's Distance\n vs Category",
+     cex=0.8, cex.main=0.8,cex.axis=0.8, cex.names=0.8)
+max(cD)
+maxrq <- which.max(abs(rQ))
+maxd <- which.max(cD)
+points( x = wine$category[maxrq], y = cD[maxrq], col = "green", pch = 16) 
+points( x = wine$category[maxd], y = cD[maxd], col = "red", pch = 16)
+```
+
+## Is binomial dist reasonable?
+```{r}
+phi.md <- deviance(best.model)/df.residual(best.model)
+phi.pearson <- summary(best.model)$dispersion
+c("Mean Deviance = ", phi.md, "Pearson = ", phi.pearson)
+```
+
+# Wald test
+```{r}
+B.hat <- summary(best.model)$coefficients[,1]
+s.e. <- summary(best.model)$coefficients[,2]
+pvalue <- summary(best.model)$coefficients[,4]
+z.test <- rep(0,8)
+P <- rep(0,8)
+for (row in 1:8) {
+  z.test[row] <- (B.hat[row]-0) / (s.e.[row])
+  P[row] <- 2*(1-pnorm(abs(z.test[row])))
+}
+z.test <- round(z.test,4)
+P <- round(P,4)
+s.e. <- round(s.e.,4)
+Binom.Wald <- cbind(z.test, P, s.e.)
+colnames(Binom.Wald ) <- c("Z-test statistic", "P-value", "s.e.")
+rownames(Binom.Wald ) <- c("B0", "volatile.acidity", "residual.sugar","free.sulfur.dioxide","total.sulfur.dioxide","sulphates","alcohol", "citric.acid")
+kable(Binom.Wald[2:8,])
+```
+
+# interpretations
+```{r}
+#odds
+mu <- summary(best.model)$coefficients[,1]
+kable(mu[2:8])
+prob <- exp(mu)
+kable(prob[2:8])
+
+```
+
